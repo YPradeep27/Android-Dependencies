@@ -1,0 +1,266 @@
+    id 'kotlin-kapt'
+    id 'com.google.gms.google-services'
+    id 'com.google.firebase.crashlytics'
+    id 'kotlin-android-extensions'    
+
+multiDexEnabled true
+
+buildFeatures {
+        dataBinding true
+    }
+    
+    
+    dependencies {
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    //noinspection GradleCompatible
+    implementation 'androidx.appcompat:appcompat:1.4.1'
+    implementation 'com.android.support.constraint:constraint-layout:2.0.4'
+    testImplementation 'junit:junit:4.+'
+    androidTestImplementation 'com.android.support.test:runner:1.0.2'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+
+    testImplementation "com.google.truth:truth:1.1"
+
+    // ViewModel & LiveData
+    implementation("androidx.lifecycle:lifecycle-common-java8:2.5.1")
+    implementation("androidx.lifecycle:lifecycle-reactivestreams:2.5.1")
+
+    // add below dependency for using room.
+    implementation 'androidx.room:room-runtime:2.4.3'
+    kapt 'androidx.room:room-compiler:2.4.3'
+
+    // add below dependency for using lifecycle extensions for room.
+    implementation "androidx.lifecycle:lifecycle-extensions:2.2.0"
+    //noinspection LifecycleAnnotationProcessorWithJava8
+    kapt "androidx.lifecycle:lifecycle-compiler:2.5.1"
+
+    //Recyclerview & CardView
+    implementation("androidx.recyclerview:recyclerview:1.2.1")
+    implementation("androidx.cardview:cardview:1.0.0")
+
+    //Retrofit & Gson Dependency
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.8.0'
+    implementation 'com.google.code.gson:gson:2.9.0'
+    implementation 'com.squareup.retrofit2:adapter-rxjava2:2.3.0'
+
+    //okhttp
+    implementation 'com.squareup.okhttp3:okhttp:3.12.1'
+    implementation 'com.squareup.okhttp3:logging-interceptor:3.9.0'
+
+    //Coroutines Dependency
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+
+    //Kodein Injection Dependency
+    implementation "org.kodein.di:kodein-di-generic-jvm:6.2.1"
+    implementation "org.kodein.di:kodein-di-framework-android-x:6.2.1"
+
+    //SDP Dependency for views
+    implementation 'com.intuit.sdp:sdp-android:1.1.0'
+
+    //Firebase Services
+    implementation platform('com.google.firebase:firebase-bom:28.2.1')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-crashlytics'
+
+    //Dots Indicator
+    implementation 'com.tbuonomo:dotsindicator:4.2'
+
+    implementation 'com.android.support.constraint:constraint-layout:1.1.3'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.4.1'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.4.1'
+
+    //Glide Dependency
+    implementation 'com.github.bumptech.glide:glide:3.7.0'
+
+    //Dagger Dependency Injection
+    def dagger_version = "2.40"
+    implementation "com.google.dagger:dagger:$dagger_version"
+    kapt "com.google.dagger:dagger-compiler:$dagger_version"
+
+}
+
+
+
+
+
+
+/************************************************************************************************************************/
+
+
+Repo Example :
+
+//For simple login
+class LoginRepo @Inject constructor(private val retrofitService: RetrofitService, private val loginActivity: LoginActivity) {
+
+    suspend fun userLogin(email : String, password : String, deviceId : String, deviceStatus : String) : Response<LoginPOJO>{
+       return retrofitService.userLogin(email, password, deviceId, deviceStatus)
+    }
+
+    fun saveUser(key : String , value : String) = loginActivity.saveUser(key,value)
+}
+
+
+//For List
+class CategoryRepo @Inject constructor(private val retrofitService: RetrofitService, private val categoryFragment: CategoryFragment) {
+
+    suspend fun getCategories(userId : String , isVan : String) : CategoryPOJO {
+        return retrofitService.getCategories(userId,isVan)
+    }
+
+    fun retrieveUser(context: Context ,key : String ) = retrieveUser2(context,key)
+}
+
+
+ViewModel Example :
+
+// For Simple :
+
+import androidx.lifecycle.ViewModel
+
+ var loginListener: LoginListener? = null
+
+ if (!email.isNullOrEmpty()) {
+            if (!password.isNullOrEmpty()) {
+
+                    Coroutines.main {
+
+                        val response = loginRepo.userLogin(
+                            email!!,
+                            password!!,
+                            it.result.toString(),
+                            Constants.DeviceType
+                        )
+                        if (response.body()?.statusCode == 200) {
+                            loginRepo.saveUser("email", email!!)
+                            loginRepo.saveUser("password", password!!)
+                        }
+                    }
+                }
+            } else {
+                loginListener?.onFailure("Please Enter Password")
+            }
+        } else {
+            loginListener?.onFailure("Please Enter Email Address")
+        }
+    }
+    fun onForgotButton(view: View) {
+        loginListener?.onStarted()
+    }
+    fun onTryFreeButton(view: View) {
+        loginListener?.onSignup()
+    }
+
+
+//For List
+
+import android.util.Log
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import com.app.tradesm8.models.category.CategoryPOJO
+import com.app.tradesm8.models.category.CategoryRepo
+import com.app.tradesm8.utilities.common.coroutines.Coroutines
+import retrofit2.Response
+import javax.inject.Inject
+
+class CategoryViewModel @Inject constructor(private val categoryRepo: CategoryRepo) : ViewModel() {
+
+    var response : MutableLiveData<CategoryPOJO> = MutableLiveData()
+
+    fun getCategory(userId : String , isVan : String){
+
+        Coroutines.main {
+            Log.i("Data", categoryRepo.getCategories(userId, isVan).toString())
+
+            response.value = categoryRepo.getCategories(userId, isVan)
+
+        }
+    }
+}
+
+
+//View Observer
+
+For Simple 
+
+import android.net.Uri
+import android.text.InputType
+import androidx.databinding.DataBindingUtil
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleObserver
+import androidx.lifecycle.OnLifecycleEvent
+import androidx.lifecycle.ViewModelProvider
+
+class LoginObserver(private val loginActivity: LoginActivity) : LifecycleObserver, LoginListener {
+
+    lateinit var loginViewModel: LoginViewModel
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
+    fun onCreated() {
+        initializations()
+
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    fun onResume() {
+        sendFirebaseAnalytics(loginActivity.applicationContext,"Login", javaClass.name)
+    }
+
+    private fun initializations() {
+
+        val factory = LoginViewModel(LoginRepo(RetrofitService(),loginActivity)).createFactory()
+
+        val binding: ActivityLoginBinding = DataBindingUtil.setContentView(loginActivity, R.layout.activity_login)
+
+        loginViewModel = ViewModelProvider(loginActivity, factory).get(LoginViewModel::class.java)
+      //  (loginActivity.application as MyApp).myComponent.inject(loginActivity)
+        loginViewModel.loginListener = this
+
+        sendFirebaseAnalytics(loginActivity.applicationContext,"Login", javaClass.name)
+        statusBar(loginActivity)
+
+        binding.let {
+            it.viewModel = loginViewModel
+            it.edtxtEmail.setRawInputType(InputType.TYPE_TEXT_FLAG_MULTI_LINE)
+            it.edtxtPassword.setRawInputType(InputType.TYPE_TEXT_FLAG_MULTI_LINE)
+            it.forgotPassword.paintFlags = binding.forgotPassword.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+
+            it.edtxtPassword.setOnFocusChangeListener { v, hasFocus ->
+                if (!hasFocus) {
+                    if (v != null) {
+                        hideKeyboard(v, loginActivity)
+                    }
+                }
+            }
+
+            it
+        }
+
+
+    }
+
+    override fun onStarted() {
+        loginActivity.startActivity(Intent(loginActivity, ForgotActivity::class.java))
+    }
+
+    override fun onSignup() {
+        loginActivity.startActivity(Intent(Intent.ACTION_VIEW).setData(Uri.parse(SignUpUrl)))
+    }
+
+    override fun onSuccess(loginPOJO: LoginPOJO) {
+        loginActivity.customToast("Login Successfully")
+        loginActivity.startActivity(Intent(loginActivity, WelcomeActivity::class.java))
+    }
+
+    override fun onFailure(message: String) {
+        loginActivity.customToast(message)
+    }
+}
+
+
+// For List
+
+
