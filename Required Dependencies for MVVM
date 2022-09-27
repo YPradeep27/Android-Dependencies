@@ -261,6 +261,248 @@ class LoginObserver(private val loginActivity: LoginActivity) : LifecycleObserve
 }
 
 
-// For List
+//List Observer
+
+
+package com.app.tradesm8.views.activities.welcome
+
+import android.content.Intent
+import androidx.databinding.DataBindingUtil
+import androidx.lifecycle.*
+
+class WelcomeObserver(private val welcomeActivity: WelcomeActivity) : LifecycleObserver {
+
+    private lateinit var welcomeViewModel: WelcomeViewModel
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
+    fun onCreated(){
+
+        initializations()
+
+    }
+
+    private fun initializations() {
+        val factory = WelcomeViewModel(UserExistRepo(RetrofitService(),welcomeActivity)).createFactory()
+        val binding : ActivityWelcomeBinding = DataBindingUtil.setContentView(welcomeActivity, R.layout.activity_welcome)
+        welcomeViewModel = ViewModelProvider(welcomeActivity,factory).get(WelcomeViewModel::class.java)
+      //  (welcomeActivity.application as MyApp).myComponent.inject(welcomeActivity)
+
+        binding.viewModel = welcomeViewModel
+        sendFirebaseAnalytics(welcomeActivity.applicationContext,"Welcome",javaClass.name)
+        statusBar(welcomeActivity)
+        binding.user.text = welcomeActivity.retrieveUser("userName")
+
+        welcomeViewModel.response.observe(welcomeActivity, Observer {
+
+            if (it.statusCode == 200){
+                welcomeActivity.let {activity ->
+                    activity.customToast("Welcome to Home Screen")
+                    activity.startActivity(Intent(welcomeActivity,HomeActivity::class.java))
+                }
+            }
+            else {
+                welcomeActivity.customToast(it.message)
+            }
+        })
+
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    fun onResume(){
+        sendFirebaseAnalytics(welcomeActivity.applicationContext,"Welcome",javaClass.name)
+    }
+
+}
+
+// For Fragment
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.databinding.DataBindingUtil
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
+import kotlinx.android.synthetic.main.fragment_category.*
+
+class CategoryFragment : Fragment() {
+
+    private lateinit var categoryViewModel: CategoryViewModel
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+
+        val factory = CategoryViewModel(CategoryRepo(RetrofitService(),this)).createFactory()
+        val binding : FragmentCategoryBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_category,container,false)
+        categoryViewModel = ViewModelProvider(this,factory).get(CategoryViewModel::class.java)
+        categoryViewModel.getCategory(retrieveUser2(activity,"userId")!!,"0")
+
+        recyclerView.layoutManager = GridLayoutManager(activity,2)
+        recyclerView.addItemDecoration(ItemOffsetDecoration(2,25,true))
+
+        categoryViewModel.response.observe(this, {
+            if (it.statusCode == 200){
+
+                recyclerView.adapter = CategoryAdapter(it.category,activity)
+
+            }
+            else {
+                activity!!.customToast("Something Went Wrong")
+            }
+        })
+
+        return binding.root
+    }
+}
+
+
+
+// Adapter 
+
+
+import android.content.Context
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.cardview.widget.CardView
+import androidx.fragment.app.FragmentActivity
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+
+class CategoryAdapter(category: List<Category>, activity: FragmentActivity?) : RecyclerView.Adapter<CategoryAdapter.ViewHolder>() {
+
+    private val myList : List<Category> = category
+    private val context : Context = activity!!
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.content_home_cat, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        holder.productName.text = myList.get(position).catName
+
+        Glide.with(context).load(myList.get(position).catImage)
+            .into(holder.productImage)
+
+        holder.productClick.setOnClickListener {
+
+            if (myList.get(position).status != 2){
+
+            }
+            else {
+                context.customToast("Category/Products Not Available")
+            }
+
+        }
+
+    }
+
+    override fun getItemCount(): Int {
+        return myList.size
+    }
+
+    class ViewHolder(ItemView: View)  : RecyclerView.ViewHolder(ItemView) {
+
+        val productName : TextView = ItemView.findViewById(R.id.textProductName)
+        val productImage : ImageView = ItemView.findViewById(R.id.productImgView)
+        val productClick : CardView = ItemView.findViewById(R.id.cardView)
+
+    }
+}
+
+
+
+
+// Coroutines
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+object Coroutines {
+
+    fun main(work : suspend (()-> Unit)){
+        CoroutineScope(Dispatchers.Main).launch {
+            work()
+        }
+    }
+}
+
+
+// ViewModel Factory 
+
+package com.app.tradesm8.utilities.common
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.app.tradesm8.utilities.dagger.annotations.scopes.ApplicationScope
+import java.lang.Exception
+import java.lang.IllegalArgumentException
+import java.lang.RuntimeException
+import javax.inject.Inject
+import javax.inject.Provider
+
+@ApplicationScope
+class ViewModelFactory
+@Inject constructor(private val creators: Map<Class<out ViewModel>, @JvmSuppressWildcards Provider<ViewModel>>): ViewModelProvider.Factory
+{
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T
+    {
+        var creator: Provider<out ViewModel>? = creators[modelClass]
+
+        if (creator == null) {
+            for ((key, value) in creators) {
+                if (modelClass.isAssignableFrom(key)) {
+                    creator = value
+                    break
+                }
+            }
+        }
+
+        if (creator == null) {
+            throw IllegalArgumentException("Unknown model class " + modelClass)
+        }
+
+        try {
+            return creator.get() as T
+        } catch (e: Exception) {
+            throw RuntimeException(e)
+        }
+    }
+}
+
+// Extention File / Class
+
+
+fun Context.customToast(message : String){
+    Toast.makeText(this,message,Toast.LENGTH_SHORT).show()
+}
+
+fun Context.saveUser(key: String , value : String){
+    val preference=getSharedPreferences(resources.getString(R.string.app_name), Context.MODE_PRIVATE)
+    val editor=preference.edit()
+    editor.putString(key,value)
+    editor.apply()
+}
+
+fun Context.retrieveUser(key: String) : String?{
+    val preference=getSharedPreferences(resources.getString(R.string.app_name), Context.MODE_PRIVATE)
+    return preference.getString(key,"")
+}
+
+fun retrieveUser2(context: Context?,key: String) : String?{
+    val preference=
+        context!!.getSharedPreferences(context.resources.getString(R.string.app_name), Context.MODE_PRIVATE)
+    return preference.getString(key,"")
+}
+
 
 
